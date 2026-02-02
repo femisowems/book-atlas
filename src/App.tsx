@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Book } from './types/Book';
-import { searchBooks } from './services/googleBooksApi';
+import { searchAndEnrichBooks } from './services/bookAggregator.service';
 import SearchBar from './components/SearchBar';
 import BookGrid from './components/BookGrid';
 import BookDetailsModal from './components/BookDetailsModal';
@@ -21,7 +21,7 @@ function App() {
     setError(null);
 
     try {
-      const result = await searchBooks(searchQuery, index);
+      const result = await searchAndEnrichBooks(searchQuery, index);
       setBooks(prev => append ? [...prev, ...result.books] : result.books);
       setTotalItems(result.totalItems);
     } catch (err) {

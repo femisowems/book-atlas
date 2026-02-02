@@ -4,6 +4,12 @@ export interface GoogleBookVolumeInfo {
     publisher?: string;
     publishedDate?: string;
     description?: string;
+    pageCount?: number;
+    categories?: string[];
+    industryIdentifiers?: Array<{
+        type: string;
+        identifier: string;
+    }>;
     imageLinks?: {
         smallThumbnail?: string;
         thumbnail?: string;
@@ -31,4 +37,9 @@ export interface Book {
     image: string;
     publishedYear: string;
     previewLink: string;
+    // New fields
+    isbn?: string;
+    publisher?: string;
+    pageCount?: number;
+    subjects?: string[];
 }

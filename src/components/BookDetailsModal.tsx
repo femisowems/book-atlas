@@ -65,11 +65,27 @@ const BookDetailsModal = ({ book, onClose }: BookDetailsModalProps) => {
                         {book.authors.join(', ')}
                     </p>
 
-                    <div className="flex items-center space-x-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-                        <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
-                            {book.publishedYear}
-                        </span>
-                        {/* Add more metadata here if available in Book type */}
+                    <div className="flex flex-wrap gap-2 mb-6 text-sm text-gray-500 dark:text-gray-400">
+                        {book.publishedYear && book.publishedYear !== 'N/A' && (
+                            <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700">
+                                {book.publishedYear}
+                            </span>
+                        )}
+                        {book.publisher && (
+                            <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700">
+                                {book.publisher}
+                            </span>
+                        )}
+                        {book.pageCount && (
+                            <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700">
+                                {book.pageCount} pages
+                            </span>
+                        )}
+                        {book.subjects?.slice(0, 3).map((subject, index) => (
+                            <span key={index} className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full border border-blue-100 dark:border-blue-800/50">
+                                {subject}
+                            </span>
+                        ))}
                     </div>
 
                     <div className="prose dark:prose-invert max-w-none flex-grow overflow-y-auto mb-6">
