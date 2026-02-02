@@ -2,6 +2,34 @@ import type { Book, GoogleBookResult, GoogleBooksApiResponse } from '../types/Bo
 
 const BASE_URL = 'https://www.googleapis.com/books/v1/volumes';
 
+const calculateRelevanceScore = (book: Book, query: string): number => {
+    let score = 0;
+    const lowerQuery = query.toLowerCase().trim();
+    const lowerTitle = book.title.toLowerCase();
+
+    // 1. Exact Title Match (+100)
+    if (lowerTitle === lowerQuery) {
+        score += 100;
+    }
+    // 2. Partial Title Match (+70)
+    else if (lowerTitle.includes(lowerQuery)) {
+        score += 70;
+    }
+
+    // 3. Author Match (+40)
+    const authorMatch = book.authors.some(author =>
+        author.toLowerCase().includes(lowerQuery)
+    );
+    if (authorMatch) {
+        score += 40;
+    }
+
+    // 4. Default / Keyword Match (+10)
+    score += 10;
+
+    return score;
+};
+
 export const searchGoogleBooks = async (
     query: string,
     startIndex: number = 0,
@@ -12,8 +40,13 @@ export const searchGoogleBooks = async (
     try {
         const API_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
 
+        // Construct weighted query: intitle OR inauthor
+        // We remove the generic fallback to reduce noise from descriptions/text
+        const encodedQuery = encodeURIComponent(query);
+        const structuredQuery = `intitle:${encodedQuery}+OR+inauthor:${encodedQuery}`;
+
         const response = await fetch(
-            `${BASE_URL}?q=${encodeURIComponent(query)}&startIndex=${startIndex}&maxResults=${maxResults}&key=${API_KEY}`
+            `${BASE_URL}?q=${structuredQuery}&startIndex=${startIndex}&maxResults=${maxResults}&orderBy=relevance&printType=books&key=${API_KEY}`
         );
 
         if (!response.ok) {
@@ -22,7 +55,7 @@ export const searchGoogleBooks = async (
 
         const data: GoogleBooksApiResponse = await response.json();
 
-        const books = (data.items || []).map((item: GoogleBookResult) => {
+        let books = (data.items || []).map((item: GoogleBookResult) => {
             const volumeInfo = item.volumeInfo;
 
             // Extract ISBN-13, fallback to ISBN-10
@@ -45,6 +78,13 @@ export const searchGoogleBooks = async (
                 pageCount: volumeInfo.pageCount,
                 subjects: volumeInfo.categories,
             };
+        });
+
+        // Apply Client-Side Ranking (Sort by score descending)
+        books.sort((a, b) => {
+            const scoreA = calculateRelevanceScore(a, query);
+            const scoreB = calculateRelevanceScore(b, query);
+            return scoreB - scoreA;
         });
 
         return {
