@@ -42,4 +42,5 @@ export interface Book {
     publisher?: string;
     pageCount?: number;
     subjects?: string[];
+    relevanceScore?: number;
 }

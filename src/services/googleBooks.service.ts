@@ -2,10 +2,33 @@ import type { Book, GoogleBookResult, GoogleBooksApiResponse } from '../types/Bo
 
 const BASE_URL = 'https://www.googleapis.com/books/v1/volumes';
 
+const JUNK_KEYWORDS = [
+    'court', 'division', 'department', 'committee', 'hearings',
+    'proceedings', 'catalog', 'records', 'report', 'symposium',
+    'legislature', 'bureau', 'administration', 'calendar'
+];
+
+const filterJunkResults = (book: Book): boolean => {
+    // 1. Must have title and authors
+    if (!book.title || !book.authors || book.authors.length === 0 || book.authors[0] === 'Unknown Author') {
+        return false;
+    }
+
+    const lowerTitle = book.title.toLowerCase();
+
+    // 2. Filter out government/bureaucratic terms
+    if (JUNK_KEYWORDS.some(keyword => lowerTitle.includes(keyword))) {
+        return false;
+    }
+
+    return true;
+};
+
 const calculateRelevanceScore = (book: Book, query: string): number => {
     let score = 0;
     const lowerQuery = query.toLowerCase().trim();
     const lowerTitle = book.title.toLowerCase();
+    const authors = book.authors.map(a => a.toLowerCase());
 
     // 1. Exact Title Match (+100)
     if (lowerTitle === lowerQuery) {
@@ -15,17 +38,20 @@ const calculateRelevanceScore = (book: Book, query: string): number => {
     else if (lowerTitle.includes(lowerQuery)) {
         score += 70;
     }
+    // 3. Keyword Overlap (+15)
+    else {
+        // If not a direct substring, do we share words?
+        const queryWords = lowerQuery.split(/\s+/);
+        const titleWords = lowerTitle.split(/\s+/);
+        const hasOverlap = queryWords.some(word => word.length > 3 && titleWords.includes(word));
+        if (hasOverlap) score += 15;
+    }
 
-    // 3. Author Match (+40)
-    const authorMatch = book.authors.some(author =>
-        author.toLowerCase().includes(lowerQuery)
-    );
+    // 4. Author Match (+40)
+    const authorMatch = authors.some(author => author.includes(lowerQuery));
     if (authorMatch) {
         score += 40;
     }
-
-    // 4. Default / Keyword Match (+10)
-    score += 10;
 
     return score;
 };
@@ -40,13 +66,16 @@ export const searchGoogleBooks = async (
     try {
         const API_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
 
-        // Construct weighted query: intitle OR inauthor
-        // We remove the generic fallback to reduce noise from descriptions/text
+        // Structured Query
         const encodedQuery = encodeURIComponent(query);
-        const structuredQuery = `intitle:${encodedQuery}+OR+inauthor:${encodedQuery}`;
+        // intitle:{query} OR inauthor:{query} OR {query}
+        const structuredQuery = `intitle:${encodedQuery}+OR+inauthor:${encodedQuery}+OR+${encodedQuery}`;
+
+        // Fetch up to 40 to have a good candidate pool
+        const fetchLimit = 40;
 
         const response = await fetch(
-            `${BASE_URL}?q=${structuredQuery}&startIndex=${startIndex}&maxResults=${maxResults}&orderBy=relevance&printType=books&key=${API_KEY}`
+            `${BASE_URL}?q=${structuredQuery}&startIndex=${startIndex}&maxResults=${fetchLimit}&orderBy=relevance&printType=books&key=${API_KEY}`
         );
 
         if (!response.ok) {
@@ -58,12 +87,11 @@ export const searchGoogleBooks = async (
         let books = (data.items || []).map((item: GoogleBookResult) => {
             const volumeInfo = item.volumeInfo;
 
-            // Extract ISBN-13, fallback to ISBN-10
             const isbn13 = volumeInfo.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier;
             const isbn10 = volumeInfo.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier;
             const isbn = isbn13 || isbn10;
 
-            return {
+            const book: Book = {
                 id: item.id,
                 title: volumeInfo.title || 'Untitled',
                 authors: volumeInfo.authors || ['Unknown Author'],
@@ -78,18 +106,25 @@ export const searchGoogleBooks = async (
                 pageCount: volumeInfo.pageCount,
                 subjects: volumeInfo.categories,
             };
+
+            book.relevanceScore = calculateRelevanceScore(book, query);
+            return book;
         });
 
-        // Apply Client-Side Ranking (Sort by score descending)
+        // Filter Junk
+        books = books.filter(filterJunkResults);
+
+        // Sort by Score Descending
         books.sort((a, b) => {
-            const scoreA = calculateRelevanceScore(a, query);
-            const scoreB = calculateRelevanceScore(b, query);
-            return scoreB - scoreA;
+            return (b.relevanceScore || 0) - (a.relevanceScore || 0);
         });
+
+        // Return requested slice
+        const returnedBooks = books.slice(0, maxResults);
 
         return {
-            books,
-            totalItems: data.totalItems || 0,
+            books: returnedBooks,
+            totalItems: data.totalItems || 0, // Note: filtering reduces actual totalItems but we keep API count
         };
     } catch (error) {
         console.error('Failed to fetch books from Google:', error);

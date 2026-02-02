@@ -5,7 +5,7 @@ import type { Book } from '../types/Book';
 export const searchAndEnrichBooks = async (
     query: string,
     startIndex: number = 0,
-    maxResults: number = 12
+    maxResults: number = 13
 ): Promise<{ books: Book[]; totalItems: number }> => {
     // 1. Fetch from Google Books
     const googleResults = await searchGoogleBooks(query, startIndex, maxResults);
