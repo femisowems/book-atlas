@@ -12,6 +12,18 @@ const BookCard = ({ book, onClick }: BookCardProps) => {
             className="group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer flex flex-col h-full transform hover:-translate-y-1"
         >
             <div className="relative aspect-[2/3] overflow-hidden bg-gray-200 dark:bg-gray-700">
+                {/* Source Badges */}
+                {book.source === 'nyt' && (
+                    <div className="absolute top-2 right-2 bg-black text-white text-[10px] font-bold px-2 py-1 rounded-sm shadow-sm z-10 uppercase tracking-widest">
+                        {(book.rank && book.rank > 0) ? 'NYT Best Seller' : 'NYT Review'}
+                    </div>
+                )}
+                {book.source === 'google' && (
+                    <div className="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-sm shadow-sm z-10 uppercase tracking-widest">
+                        Google Books
+                    </div>
+                )}
+
                 {book.image ? (
                     <img
                         src={book.image}
