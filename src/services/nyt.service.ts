@@ -1,6 +1,35 @@
 import type { Book, NYTListResponse, NYTOverviewResponse, NYTBookResult } from '../types/Book';
 
 const BASE_URL = 'https://api.nytimes.com/svc/books/v3';
+let hasWarnedInvalidKey = false;
+
+interface NYTReviewSearchItem {
+    isbn13?: string[];
+    book_title: string;
+    book_author: string;
+    summary?: string;
+    publication_dt?: string;
+    url?: string;
+}
+
+const isValidApiKey = (key: string | undefined): key is string => {
+    if (!key) return false;
+    const normalized = key.trim().toLowerCase();
+    if (!normalized) return false;
+    return !normalized.includes('your_nyt_api_key_here');
+};
+
+const getNYTApiKey = (): string | null => {
+    const key = import.meta.env.VITE_NYT_API_KEY;
+    if (isValidApiKey(key)) return key;
+
+    if (!hasWarnedInvalidKey) {
+        hasWarnedInvalidKey = true;
+        console.warn('NYT API key is missing or using a placeholder value. Set VITE_NYT_API_KEY in your .env file.');
+    }
+
+    return null;
+};
 
 // Helper to map NYT result to our internal Book model
 const mapNYTBookToBook = (item: NYTBookResult): Book => {
@@ -25,7 +54,8 @@ const mapNYTBookToBook = (item: NYTBookResult): Book => {
 
 export const fetchNYTOverview = async (): Promise<Book[]> => {
     try {
-        const API_KEY = import.meta.env.VITE_NYT_API_KEY;
+        const API_KEY = getNYTApiKey();
+        if (!API_KEY) return [];
         // Fetch "Overview" which gives top 5 from multiple lists (Fiction, Nonfiction, etc.)
         const response = await fetch(`${BASE_URL}/lists/overview.json?api-key=${API_KEY}`);
 
@@ -60,7 +90,8 @@ export const fetchNYTOverview = async (): Promise<Book[]> => {
 
 export const fetchNYTList = async (listNameEncoded: string): Promise<Book[]> => {
     try {
-        const API_KEY = import.meta.env.VITE_NYT_API_KEY;
+        const API_KEY = getNYTApiKey();
+        if (!API_KEY) return [];
         const response = await fetch(`${BASE_URL}/lists/current/${listNameEncoded}.json?api-key=${API_KEY}`);
 
         if (!response.ok) {
@@ -78,7 +109,8 @@ export const fetchNYTList = async (listNameEncoded: string): Promise<Book[]> => 
 
 export const searchNYTReviews = async (query: string): Promise<Book[]> => {
     try {
-        const API_KEY = import.meta.env.VITE_NYT_API_KEY;
+        const API_KEY = getNYTApiKey();
+        if (!API_KEY) return [];
         // Search reviews by title. NYT Reviews API is the closest proxy for "searching" books.
         const response = await fetch(`${BASE_URL}/reviews.json?title=${encodeURIComponent(query)}&api-key=${API_KEY}`);
 
@@ -86,17 +118,17 @@ export const searchNYTReviews = async (query: string): Promise<Book[]> => {
             return [];
         }
 
-        const data = await response.json();
+        const data: { results?: NYTReviewSearchItem[] } = await response.json();
         const results = data.results || [];
 
-        return results.map((item: any) => ({
+        return results.map((item) => ({
             id: item.isbn13?.[0] || item.book_title,
             title: item.book_title,
             authors: [item.book_author],
             description: item.summary || 'No review summary available.',
             image: '', // Needs enrichment
             publishedYear: item.publication_dt ? item.publication_dt.split('-')[0] : 'N/A',
-            previewLink: item.url, // Link to the NYT Review
+            previewLink: item.url || '', // Link to the NYT Review
             isbn: item.isbn13?.[0],
             publisher: '',
             rank: 0,

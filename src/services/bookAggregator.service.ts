@@ -24,7 +24,7 @@ const enrichBooks = async (books: Book[]): Promise<Book[]> => {
                     // If NYT image is missing/placeholder, try Open Library
                     image: book.image || olData.image || '',
                 };
-            } catch (error) {
+            } catch {
                 // Silently fail enrichment
                 return book;
             }
@@ -56,13 +56,19 @@ export const searchBooks = async (query: string): Promise<Book[]> => {
 
     // 2. Check Feature Flag for Google Books
     const enableGoogle = import.meta.env.VITE_ENABLE_GOOGLE_BOOKS_SEARCH === 'true';
-    if (!enableGoogle) {
+    const shouldFallbackToGoogle = !enableGoogle && enrichedNYT.length === 0;
+
+    if (!enableGoogle && !shouldFallbackToGoogle) {
         return enrichedNYT;
     }
 
     // 3. Search Google Books (Algorithmic/Broad)
     try {
         const googleResults = await googleProvider.search(query);
+
+        if (shouldFallbackToGoogle) {
+            return googleResults;
+        }
 
         // 4. Merge & Deduplicate
         // Filter out Google results that match NYT ISBNs (prefer NYT entry)

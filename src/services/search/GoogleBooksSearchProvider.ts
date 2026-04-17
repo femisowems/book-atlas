@@ -2,6 +2,26 @@ import type { SearchProvider } from './SearchProvider';
 import type { Book } from '../../types/Book';
 
 const BASE_URL = 'https://www.googleapis.com/books/v1/volumes';
+let hasWarnedInvalidGoogleKey = false;
+
+const isValidGoogleApiKey = (key: string | undefined): key is string => {
+    if (!key) return false;
+    const normalized = key.trim().toLowerCase();
+    if (!normalized) return false;
+    return !normalized.includes('your_google_books_api_key_here');
+};
+
+const getGoogleApiKey = (): string | null => {
+    const key = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+    if (isValidGoogleApiKey(key)) return key;
+
+    if (!hasWarnedInvalidGoogleKey) {
+        hasWarnedInvalidGoogleKey = true;
+        console.warn('Google Books API key is missing or using a placeholder value. Set VITE_GOOGLE_BOOKS_API_KEY in your .env file or disable Google search.');
+    }
+
+    return null;
+};
 
 interface GoogleBookVolume {
     id: string;
@@ -31,12 +51,14 @@ export class GoogleBooksSearchProvider implements SearchProvider {
         if (!query.trim()) return [];
 
         try {
-            const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || '';
+            const apiKey = getGoogleApiKey();
+            if (!apiKey) return [];
             const url = `${BASE_URL}?q=${encodeURIComponent(query)}&maxResults=20&key=${apiKey}`;
 
             const response = await fetch(url);
             if (!response.ok) {
-                console.error(`Google Books API error: ${response.statusText}`);
+                const body = await response.text();
+                console.error(`Google Books API error: ${response.status} ${response.statusText}`, body);
                 return [];
             }
 
@@ -52,7 +74,8 @@ export class GoogleBooksSearchProvider implements SearchProvider {
 
     async getByIsbn(isbn: string): Promise<Book | null> {
         try {
-            const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || '';
+            const apiKey = getGoogleApiKey();
+            if (!apiKey) return null;
             const url = `${BASE_URL}?q=isbn:${isbn}&maxResults=1&key=${apiKey}`;
 
             const response = await fetch(url);

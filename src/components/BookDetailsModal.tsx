@@ -8,32 +8,68 @@ interface BookDetailsModalProps {
 
 const BookDetailsModal = ({ book, onClose }: BookDetailsModalProps) => {
     const modalRef = useRef<HTMLDivElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const previouslyFocusedElement = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
         };
 
+        const handleTrapFocus = (e: KeyboardEvent) => {
+            if (e.key !== 'Tab' || !modalRef.current) return;
+            const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+                'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusable.length === 0) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+
+            if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        };
+
         if (book) {
+            previouslyFocusedElement.current = document.activeElement as HTMLElement;
             document.addEventListener('keydown', handleEscape);
+            document.addEventListener('keydown', handleTrapFocus);
             document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            closeButtonRef.current?.focus();
         }
 
         return () => {
             document.removeEventListener('keydown', handleEscape);
+            document.removeEventListener('keydown', handleTrapFocus);
             document.body.style.overflow = 'unset';
+            previouslyFocusedElement.current?.focus();
         };
     }, [book, onClose]);
 
     if (!book) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+            onClick={onClose}
+            role="presentation"
+        >
             <div
                 ref={modalRef}
-                className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row animate-scale-up relative"
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="book-modal-title"
+                className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto flex flex-col md:flex-row animate-scale-up relative"
             >
                 <button
+                    ref={closeButtonRef}
                     onClick={onClose}
                     className="absolute top-4 right-4 p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors z-10"
                     aria-label="Close modal"
@@ -57,14 +93,15 @@ const BookDetailsModal = ({ book, onClose }: BookDetailsModalProps) => {
                     )}
                 </div>
 
-                <div className="w-full md:w-2/3 p-6 md:p-8 flex flex-col">
-                    <h2 className="text-2xl md:text-3xl font-bold mb-2 text-gray-900 dark:text-white leading-tight">
+                <div className="w-full md:w-2/3 p-5 md:p-8 flex flex-col">
+                    <h2 id="book-modal-title" className="text-2xl md:text-3xl font-bold mb-2 text-gray-900 dark:text-white leading-tight">
                         {book.title}
                     </h2>
                     <p className="text-lg text-blue-600 dark:text-blue-400 font-medium mb-4">
                         {book.authors.join(', ')}
                     </p>
 
+                    <h3 className="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">Book Snapshot</h3>
                     <div className="flex flex-wrap gap-2 mb-6 text-sm text-gray-500 dark:text-gray-400">
                         {book.publishedYear && book.publishedYear !== 'N/A' && (
                             <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700">
@@ -88,13 +125,14 @@ const BookDetailsModal = ({ book, onClose }: BookDetailsModalProps) => {
                         ))}
                     </div>
 
+                    <h3 className="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">Summary</h3>
                     <div className="prose dark:prose-invert max-w-none flex-grow overflow-y-auto mb-6">
                         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                             {book.description}
                         </p>
                     </div>
 
-                    <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-3 justify-end">
+                    <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-3 justify-end sticky bottom-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm pb-1">
                         {/* NYT Review Link (Existing Preview Link) */}
                         {book.previewLink && (
                             <a
