@@ -7,21 +7,61 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Runtime data
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
 node_modules
+
+# Build and generated output
 dist
 dist-ssr
+coverage
+*.tsbuildinfo
+
+# Local env files (do not commit secrets)
 *.local
 .env
+.env.*
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
+!.env.example
+
+# Package manager stores
+.npm/
+.pnpm-store/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Tool caches
+.cache/
+.eslintcache
+.stylelintcache
+.vite/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Coverage reports
+coverage-final.json
+*.lcov
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+.DS_Store?
+._*
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj

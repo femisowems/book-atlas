@@ -1,12 +1,29 @@
 {
   "name": "book-atlas",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Book discovery app combining NYT curation with Open Library enrichment and optional Google Books search.",
+  "license": "ISC",
+  "keywords": [
+    "books",
+    "react",
+    "typescript",
+    "vite",
+    "new-york-times",
+    "open-library",
+    "google-books"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b --pretty false --noEmit",
+    "check": "npm run lint && npm run typecheck",
     "preview": "vite preview"
   },
   "dependencies": {
